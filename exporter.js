@@ -272,7 +272,7 @@ exports.transferData = function (callback) {
     pump.onEnd(function() {
         exports.status = "done";
         log.status('                                                                    ');
-        log.info('Processed %s entries (100%%)', total);
+        log.info('Processed %s entries (100%%) in %s', total, new Date().toISOString());
         callback();
     });
     pump.onError(function(err) {
@@ -281,7 +281,7 @@ exports.transferData = function (callback) {
     });
 
     exports.status = "running";
-    log.info("Starting data export");
+    log.info('Starting data export in %s', new Date().toISOString());
 
     async.until(function() {
         return pointer >= total;
