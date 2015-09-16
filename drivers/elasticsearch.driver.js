@@ -59,6 +59,10 @@ exports.getInfo = function (callback) {
                 abbr: 'z',
                 help: 'The maximum number of results to be returned per query.',
                 preset: 100
+            }, timeoutBetweenCalls: {
+                abbr: 'T',
+                help: 'Sets timeout between calls to the Elasticsearch cluster',
+                preset: 5
             }
         }, target: {
             host: {
@@ -102,6 +106,10 @@ exports.getInfo = function (callback) {
             }, replicas: {
                 abbr: 'r',
                 help: 'Sets the number of replicas the target index should be initialized with (only works with new indices).'
+            }, timeoutBetweenCalls: {
+                abbr: 'T',
+                help: 'Sets timeout between calls to the Elasticsearch cluster',
+                preset: 10
             }
         }
     };
@@ -541,7 +549,9 @@ exports.getData = function (env, callback) {
     }
 
     if (exports.scrollId !== null) {
-        request.source.post(env, '/_search/scroll?scroll=60m', exports.scrollId, handleResult, callback);
+        setTimeout(function () {
+            request.source.post(env, '/_search/scroll?scroll=60m', exports.scrollId, handleResult, callback)
+        }, env.options.source.timeoutBetweenCalls);
     } else {
         request.source.post(env, '/_search?search_type=scan&scroll=60m', query, function(data) {
             exports.scrollId = data._scroll_id;
@@ -577,17 +587,19 @@ exports.putData = function (env, docs, callback) {
         }
         data += JSON.stringify(metaData) + '\n' + JSON.stringify(doc._source) + '\n';
     });
-    request.target.post(env, '/_bulk', data, function (data) {
-        if (data.errors) {
-            for (var i in data.items) {
-                var item = data.items[i];
-                if (!item.index || item.index.status / 100 != 2) {
-                    callback(JSON.stringify(item));
-                    break;
+    setTimeout(function () {
+        request.target.post(env, '/_bulk', data, function (data) {
+            if (data.errors) {
+                for (var i in data.items) {
+                    var item = data.items[i];
+                    if (!item.index || item.index.status / 100 != 2) {
+                        callback(JSON.stringify(item));
+                        break;
+                    }
                 }
+            } else {
+                callback();
             }
-        } else {
-            callback();
-        }
-    }, callback);
+        }, callback);
+    }, env.options.target.timeoutBetweenCalls);
 };
